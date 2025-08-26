@@ -11,6 +11,9 @@ export default function Navbar() {
         <Link to="/favorites" className="hover:text-blue-400">
           Favorites
         </Link>
+        <Link to="/showgames" className="hover:text-blue-400">
+          Show_Games
+        </Link>
       </div>
     </nav>
   );

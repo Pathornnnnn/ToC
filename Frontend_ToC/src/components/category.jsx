@@ -2,19 +2,20 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import "./category.css";
 function Category() {
-  const [posts, setPosts] = useState([]);
+  const [posts, setPost] = useState([]);
   console.log(posts);
   useEffect(() => {
     axios
-      .get("http://127.0.0.1:8000/")
+      .get("http://127.0.0.1:8000/getcategory")
       .then((response) => {
-        setPosts(response.data);
+        setPost(response.data);
       })
       .catch((error) => {
         console.error(error);
       });
   }, []);
 
+  console.log(posts);
   return (
     <>
       <h1 className="text-center font-mono">Category</h1>

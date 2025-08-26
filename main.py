@@ -1,88 +1,103 @@
-import re
-from bs4 import BeautifulSoup
 import requests
-import pandas as pd 
+import re
+import pandas as pd
+import time
+from bs4 import BeautifulSoup
 
-'''
-Link
-https://oceansofgamess.com/
-'''
+url1 = "https://oceanofgames.com/"
+web = requests.get(url1).text
+Max_page = 5
 
-headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
-}
+navbar = r'<li\sid="menu-item-[\d]*"\sclass="menu-[\w]*"><a\shref="([\w:/.-]*)">[\w\s]*<span\sclass="p"></span></a></li>'
+links = re.findall(navbar, web)
 
-url = 'https://oceansofgamess.com/'
+all_posts = []
 
-web = requests.get(url, headers=headers)
-txt = BeautifulSoup(web.text, 'html.parser')
-filter_ul = txt.find_all(['ul'], id='menu-menu')
-
-links = []
+print('eiei', links)
+print()
 name_catagory = []
-for filter in filter_ul:
-    f = filter.find_all(['li'], class_=re.compile(r'menu-\D+'))
-    for link in f:
-        add_link = link.find('a')
-        links.append(add_link.get('href'))
-        name_catagory.append(add_link.get_text(strip=True))
-links.pop(0)
-print(links)
+for link in links:
+    name = re.findall(r'category/([\w-]*)', link)
+    print(name)
+    if name:
+        name_catagory.append(name[0])
 print(name_catagory)
+ids_seen = set()
+url_seen = set()
 
-# post_to_csv = []
-# post_seen = set()
 
-# for link_web in links:
-#     url = link_web
-#     while True:
-#         web = requests.get(url, headers=headers)
-#         html = BeautifulSoup(web.text, 'html.parser')
-#         cp_post = html.find_all('div', id=re.compile(r'^post-\d+'))
+def scraping_all_category(max_page=5):
+    print('Start Scraping...')
+    st = time.time()
+    for link in links:
+        url2 = link
+        name = re.findall(r'category/([\w-]*)', link)
+        print('Category : ', name[0] if name else 'No category')
+        while True:
+            if url2 in url_seen:
+                break
+            url_seen.add(url2)
+            div = requests.get(url2).text
+            if not div:
+                break
 
-#         if not cp_post:
-#             break
-
-#         for post in cp_post: 
-#             post_title = post.find('h2', class_="title")
-#             title_text = post_title.get_text(strip=True) if post_title else ' '
-
-#             #check duplicate
-#             if title_text in post_seen:
-#                 continue
-#             post_seen.add(title_text)
-
-#             post_img = post.find('img', class_='attachment-140x140')
-#             img_text = post_img.get('src') if post_img else " "
-
-#             post_date = post.find('div', class_='post-date')
-#             date_text = post_date.get_text(strip=True) if post_date else ' '
-
-#             post_info = post.find('div', class_='post-info')
-#             if post_info:
-#                 cate = post_info.find_all('a', attrs={'title': True})
-#                 cate_text = ', '.join(i.get_text(strip=True)for i in cate)
-#             else:
-#                 cate_text = ' '
-
-#             post_content = post.find('div', class_='post-content')
-#             content_text = post_content.get_text(strip=True) if post_content else ' '
+            titles = re.findall(r'<a\sclass="post-thumb\s"\sid="thumb-[\d]*"\shref="[\w:/.-]*"\stitle="([\w\s.]*)">', div)
+            ids = re.findall(r'<a\sclass="post-thumb\s"\sid="thumb-([\d]*)"', div)
+            imgs = re.findall(r'<img\swidth="140"\sheight="140"\ssrc="([\w:/.-]*)"', div)
+            dates = re.findall(r'<div\sclass="post-std\sclear-block">[\w\W]*?<div\sclass="post-date"><span\sclass="ext">([\d\s\w]+)</span></div>', div)
             
-#             post_to_csv.append({
-#                 "Title": title_text,
-#                 "Img": img_text,
-#                 "Date": date_text,
-#                 "Category": cate_text,
-#                 "Content" : content_text
-#             })
+            # block content ของ description (ใช้ regex ก่อน)
+            desc_blocks = re.findall(r'<div\sclass="post-content\sclear-block">([\w\W]*?)<p\sclass="more">', div)
 
-#         #next
-#         next = html.find('a', class_='next')
-#         if next and next.get('href'):
-#             url = next['href']
-#         else:
-#             break
+            tag_blocks = re.findall(r'<div class="post-info">([\w\W]*?)</div>', div)
 
-# df = pd.DataFrame(post_to_csv)
+            for i in range(len(titles)):
+                if ids[i] in ids_seen:
+                    continue
+                ids_seen.add(ids[i])
+
+                # --- ใช้ BeautifulSoup ดึง <p> description ---
+                desc = None
+                if i < len(desc_blocks):
+                    soup = BeautifulSoup(desc_blocks[i], "html.parser")
+                    p = soup.find("p")
+                    if p:
+                        desc = p.get_text(" ", strip=True)
+                        if len(desc) > 150:
+                            desc = desc[:150] + "..."
+
+                tags = re.findall(r'\srel="tag"\stitle="([\w]+)', tag_blocks[i]) if i < len(tag_blocks) else []
+
+                post = {
+                    "ID": ids[i].strip() if i < len(ids) else None,
+                    "Title": titles[i].strip() if i < len(titles) else None,
+                    "Tags": tags,
+                    "Image": imgs[i].strip() if i < len(imgs) else None,
+                    "Date": dates[i].strip() if i < len(dates) else None,
+                    "Description": desc,
+                }
+                all_posts.append(post)
+
+            next_page = re.findall(r'<a\s+class="next"\s+href="([^"]+)">', div)
+            if next_page:
+                next_num = re.findall(r'page/(\d+)', url2)
+                if not next_num:
+                    next_num = [1]
+                next_num = int(next_num[0])
+                if not next_num <= max_page:
+                    break
+                url2 = next_page[0]
+                print('Go to page : ', next_num)
+            else:
+                break
+
+    elapsed = time.time() - st
+    print(f"Scraping finished in {elapsed:.2f} seconds.")
+    print(all_posts[0])
+    return all_posts
+
+
+# ตัวอย่างการรัน
+# data = scraping_all_category(Max_page)
+# df = pd.DataFrame(data)
 # df.to_csv("data.csv", index=False, encoding="utf-8-sig")
-print(f"saved")

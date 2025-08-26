@@ -18,6 +18,12 @@ app.add_middleware(
     allow_headers=["*"],    # ["Content-Type", "Authorization"]
 )
 
-@app.get("/")
+
+@app.get("/getcategory")
 def read_root():
     return name_catagory
+
+@app.get("/getdata")
+def read_root():
+    scraping_all_category(max_page=1)
+    return all_posts
