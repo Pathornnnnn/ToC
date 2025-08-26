@@ -11,10 +11,10 @@ Assignment
 
 #active venv
 
-  window:
+  window
     * .venv\Scripts\activate
   
-  macOS / linux:
+  macOS / linux
     * source .venv/bin/activate
 
 #ติดตั้ง Dependencies
