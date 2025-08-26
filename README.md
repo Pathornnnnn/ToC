@@ -32,6 +32,7 @@ Assignment
   * cd ./Frontend_ToC
 
 #ติดตั้ง Dependencies
+  new terminal
   * npm install
   * npm list --depth=0
 
